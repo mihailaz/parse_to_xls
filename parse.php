@@ -10,9 +10,34 @@ $pages = [];
 
 $data = [];
 
+if (!file_exists('./cache'))
+	mkdir('./cache');
+
+/**
+ * @param string $url
+ * @return string content
+ * @throws Exception
+ */
+function getContent($url)
+{
+	if (!$url)
+		throw new \Exception('Invalid url');
+
+	$key = md5($url);
+	$cache_file = "./cache/$key";
+
+	if (file_exists($cache_file))
+		return file_get_contents($cache_file);
+
+	$content = file_get_contents($url);
+	file_put_contents($cache_file, $content);
+
+	return $content;
+}
+
 foreach ($urls as $url)
 {
-	$content = file_get_contents($url);
+	$content = getContent($url);
 
 	$domDoc  = new \DOMDocument('1.0', 'utf-8');
 	$domDoc->strictErrorChecking = false;
@@ -43,7 +68,7 @@ foreach ($urls as $url)
 
 foreach ($pages as $url)
 {
-	$content = file_get_contents($url);
+	$content = getContent($url);
 
 	$domDoc  = new \DOMDocument('1.0', 'utf-8');
 	$domDoc->strictErrorChecking = false;
@@ -122,6 +147,10 @@ foreach ($pages as $url)
 
 	$img = trim($nodeImg->getAttribute('src'));
 
+	$file_name = end(explode('/', $img));
+	$img_src = getContent($img);
+	file_put_contents($file_name, $img_src);
+
 	$data[] = [
 		'title' => $title,
 		'code' => $code,
@@ -129,6 +158,7 @@ foreach ($pages as $url)
 		'currency' => $currency,
 		'description' => $desc,
 		'spec' => $spec,
+		'img' => $file_name,
 	];
 }
 
@@ -153,8 +183,6 @@ foreach ($data as $d)
 
 			$v = implode("\r\n", $a);
 		}
-
-		var_dump($v);
 
 		$row .= <<<TABLE
 <Cell><Data ss:Type="String">{$v}</Data></Cell>
