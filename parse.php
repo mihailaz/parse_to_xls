@@ -1,9 +1,12 @@
 <?php
 
 $urls = [
-	'http://alexavto52.ru/g6301047-zapasnye-chasti-dlya',
-	'http://alexavto52.ru/g6301047-zapasnye-chasti-dlya/page_2',
-	'http://alexavto52.ru/g6301047-zapasnye-chasti-dlya/page_3',
+	'/catalog/umbro/',
+	'/catalog/umbro/?PAGEN_1=2',
+	'/catalog/umbro/?PAGEN_1=3',
+	'/catalog/umbro/?PAGEN_1=4',
+	'/catalog/umbro/?PAGEN_1=5',
+	'/catalog/umbro/?PAGEN_1=6',
 ];
 
 $pages = [];
@@ -18,11 +21,16 @@ if (!file_exists('./cache'))
  * @return string content
  * @throws Exception
  */
-function getContent($url)
+function getContent($url, $require = true)
 {
-	if (!$url)
-		throw new \Exception('Invalid url');
+	if (!$url){
+		if ($require)
+			throw new \Exception('Invalid url');
+		else
+			return null;
+	}
 
+	$url = 'http://www.proball.ru' . $url;
 	$key = md5($url);
 	$cache_file = "./cache/$key";
 
@@ -50,7 +58,9 @@ foreach ($urls as $url)
 		throw new \Exception('Error parsing document');
 
 	$xpath = new \DOMXPath($domDoc);
-	$nodeList = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-layout__clear ')]/descendant::a[contains(concat(' ', normalize-space(@class), ' '), ' b-centered-image ')]");
+
+	// xpath to item link
+	$nodeList = $xpath->query("descendant-or-self::*[@id = 'catalog_panel']/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' items_list ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' item ')]");
 
 	/**
 	 * @var \DOMElement $a
@@ -81,21 +91,21 @@ foreach ($pages as $url)
 		throw new \Exception('Error parsing document');
 
 	$xpath = new \DOMXPath($domDoc);
-	$nodeTitle = $xpath->query("descendant-or-self::h1[contains(concat(' ', normalize-space(@class), ' '), ' b-product__name ')]")->item(0);
+	$nodeTitle = $xpath->query("descendant-or-self::*[@id = 'WorkForm']/descendant::h1")->item(0);
 
 	if (!$nodeTitle)
 		throw new \Exception('title not found');
 
 	$title = trim($nodeTitle->textContent);
 
-	$nodeCode = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__info-holder ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__sku ')]")->item(0);
+	$nodeCode = $xpath->query("descendant-or-self::*[@id = 'article']")->item(0);
 
 	if (!$nodeCode)
 		throw new \Exception('code not found');
 
-	$code = trim($nodeCode->getAttribute('title'));
+	$code = trim($nodeCode->nodeValue);
 
-	$nodePrice = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__info-holder ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__price ')]")->item(0);
+	$nodePrice = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' price_panel ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' price ')]")->item(0);
 
 	if (!$nodePrice)
 		throw new \Exception('price not found');
@@ -109,14 +119,14 @@ foreach ($pages as $url)
 	if (!$price || !$currency)
 		throw new \Exception('Invalid price');
 
-	$nodeDesc = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-layout__content ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' b-user-content ')]")->item(0);
+	$nodeDesc = $xpath->query("descendant-or-self::*[@id = 'tabs-1']/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' info ')]")->item(0);
 
 	if (!$nodeDesc)
 		throw new \Exception('description not found');
 
 	$desc = trim($nodeDesc->textContent);
 
-	$nodesSpec = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-layout__content ')]/descendant::table[contains(concat(' ', normalize-space(@class), ' '), ' b-product-info ')]/descendant::td");
+	$nodesSpec = $xpath->query("descendant-or-self::*[@id = 'tabs-2']/descendant::table/descendant::tr/*");
 
 	if (!$nodesSpec || !$nodesSpec->length)
 		throw new \Exception('Spec not found');
@@ -140,7 +150,7 @@ foreach ($pages as $url)
 			$last_key = $s;
 	}
 
-	$nodeImg = $xpath->query("descendant-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__container ')]/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' b-product__image ')]/descendant::img")->item(0);
+	$nodeImg = $xpath->query("descendant-or-self::*[@id = 'WorkForm']/descendant::*[contains(concat(' ', normalize-space(@class), ' '), ' big_img ')]/descendant::img")->item(0);
 
 	if (!$nodeImg)
 		throw new \Exception('image not found');
@@ -148,8 +158,10 @@ foreach ($pages as $url)
 	$img = trim($nodeImg->getAttribute('src'));
 
 	$file_name = end(explode('/', $img));
-	$img_src = getContent($img);
-	file_put_contents($file_name, $img_src);
+	$img_src = getContent($img, false);
+
+	if ($img_src)
+		file_put_contents($file_name, $img_src);
 
 	$data[] = [
 		'title' => $title,
