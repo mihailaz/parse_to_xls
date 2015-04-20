@@ -38,6 +38,10 @@ function getContent($url, $require = true)
 		return file_get_contents($cache_file);
 
 	$content = file_get_contents($url);
+	
+	if (!trim($content))
+		throw new \Exception('Invalid content from ' . $url);
+	
 	file_put_contents($cache_file, $content);
 
 	return $content;
